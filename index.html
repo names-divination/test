@@ -3,144 +3,212 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Piped API Checker</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Piped Server Checker</title>
 <style>
+* { box-sizing: border-box; }
+
 body {
-  font-family: sans-serif;
-  background: #111827;
-  color: white;
+  margin: 0;
   padding: 20px;
+  background: #111827;
+  color: #f9fafb;
+  font-family: sans-serif;
 }
-h1 { font-size: 24px; }
+
+main {
+  max-width: 850px;
+  margin: auto;
+}
+
+h1 { font-size: 25px; }
+
+textarea {
+  width: 100%;
+  height: 220px;
+  padding: 14px;
+  background: #1f2937;
+  color: white;
+  border: 1px solid #4b5563;
+  border-radius: 10px;
+  resize: vertical;
+  font-size: 14px;
+  font-family: monospace;
+}
+
+input {
+  padding: 10px;
+  width: 100%;
+  background: #1f2937;
+  color: white;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+}
+
 button {
-  padding: 12px 20px;
+  padding: 12px 18px;
+  margin: 5px 5px 5px 0;
   border: 0;
   border-radius: 8px;
   cursor: pointer;
-  margin: 5px;
+  font-weight: bold;
 }
-#start { background: #2563eb; color: white; }
-#copy { background: #374151; color: white; }
+
+.start { background: #2563eb; color: white; }
+.copy { background: #374151; color: white; }
+.stop { background: #991b1b; color: white; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.stat {
+  background: #1f2937;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.number {
+  font-size: 25px;
+  font-weight: bold;
+}
+
 #progress {
+  height: 9px;
   background: #374151;
-  height: 10px;
   border-radius: 10px;
   overflow: hidden;
 }
+
 #bar {
-  background: #3b82f6;
   height: 100%;
   width: 0%;
+  background: #3b82f6;
 }
-.stats {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.stat {
+
+.result {
   background: #1f2937;
-  padding: 15px;
-  border-radius: 10px;
-  flex: 1;
-  min-width: 90px;
-}
-.num { font-size: 25px; font-weight: bold; }
-#results {
-  margin-top: 20px;
-}
-.item {
-  background: #1f2937;
-  padding: 12px;
+  padding: 13px;
   margin: 8px 0;
   border-radius: 8px;
   overflow-wrap: anywhere;
+  border-left: 5px solid #6b7280;
 }
-.success { border-left: 5px solid #22c55e; }
-.failed { border-left: 5px solid #ef4444; }
-.unknown { border-left: 5px solid #eab308; }
-.small { color: #9ca3af; font-size: 13px; }
+
+.ok { border-color: #22c55e; }
+.ng { border-color: #ef4444; }
+.unknown { border-color: #eab308; }
+
+.small {
+  color: #9ca3af;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.badge {
+  font-weight: bold;
+}
+
+@media(max-width:500px) {
+  .stats { grid-template-columns: repeat(2,1fr); }
+}
 </style>
 </head>
 <body>
+<main>
 
-<h1>Piped API Checker</h1>
-<p>動画ID: aqz-KE-BPKQ</p>
+<h1>Piped Server Checker</h1>
+<p>URLを1行ずつ入力してください。</p>
 
-<button id="start" onclick="startTest()">検査開始</button>
-<button id="copy" onclick="copyResults()">結果をコピー</button>
+<textarea id="urls" placeholder="https://pipedapi.example.com
+https://another-piped-api.example
+https://example.org/streams/aqz-KE-BPKQ"></textarea>
+
+<p>検査する動画ID</p>
+<input id="video" value="aqz-KE-BPKQ">
+
+<p>
+<button class="start" id="start" onclick="startTest()">検査開始</button>
+<button class="stop" onclick="stopTest()">停止</button>
+<button class="copy" onclick="copyResults()">結果をコピー</button>
+</p>
 
 <div class="stats">
   <div class="stat">
-    成功
-    <div class="num" id="success">0</div>
+    成功<div class="number" id="success">0</div>
   </div>
   <div class="stat">
-    失敗
-    <div class="num" id="failed">0</div>
+    失敗<div class="number" id="failed">0</div>
   </div>
   <div class="stat">
-    判定不能
-    <div class="num" id="unknown">0</div>
+    判定不能<div class="number" id="unknown">0</div>
   </div>
   <div class="stat">
-    検査済み
-    <div class="num" id="checked">0</div>
+    検査済み<div class="number" id="checked">0</div>
   </div>
 </div>
 
-<br>
 <div id="progress"><div id="bar"></div></div>
 <p id="status">待機中</p>
-
 <div id="results"></div>
 
+</main>
+
 <script>
-const servers = [
-  "https://pipedapi.kavin.rocks",
-  "https://pipedapi.leptons.xyz",
-  "https://pipedapi.nosebs.ru",
-  "https://pipedapi-libre.kavin.rocks",
-  "https://piped-api.privacy.com.de",
-  "https://pipedapi.adminforge.de",
-  "https://api.piped.yt",
-  "https://pipedapi.drgns.space",
-  "https://pipedapi.owo.si",
-  "https://pipedapi.ducks.party",
-  "https://piped-api.codespace.cz",
-  "https://pipedapi.reallyaweso.me",
-  "https://api.piped.private.coffee",
-  "https://pipedapi.darkness.services",
-  "https://pipedapi.orangenet.cc",
-  "https://pipedapi.tokhmi.xyz",
-  "https://pipedapi.moomoo.me",
-  "https://pa.il.ax",
-  "https://pa.mint.lgbt",
-  "https://pipedapi.syncpundit.io"
-];
-
-const videoId = "aqz-KE-BPKQ";
 let results = [];
+let stopped = false;
+let running = false;
 
-async function testServer(base) {
-  const url = base + "/streams/" + videoId;
+function makeURL(input, video) {
+  let url = input.trim();
+
+  if (!url) return null;
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = "https://" + url;
+  }
+
+  const parsed = new URL(url);
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("対応していないURL形式");
+  }
+
+  // 既にstreamsのURLなら動画IDだけ変更
+  const match = parsed.pathname.match(/\/streams\/[^/]+\/?$/);
+
+  if (match) {
+    parsed.pathname =
+      parsed.pathname.replace(/\/streams\/[^/]+\/?$/, "") +
+      "/streams/" + encodeURIComponent(video);
+  } else {
+    parsed.pathname =
+      parsed.pathname.replace(/\/+$/, "") +
+      "/streams/" + encodeURIComponent(video);
+  }
+
+  parsed.search = "";
+  parsed.hash = "";
+
+  return parsed.href;
+}
+
+async function test(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
-
     const response = await fetch(url, {
       method: "GET",
-      signal: controller.signal,
-      cache: "no-store"
+      cache: "no-store",
+      signal: controller.signal
     });
-
-    clearTimeout(timer);
 
     if (!response.ok) {
       return {
-        server: base,
-        url,
         result: "failed",
         status: response.status,
         error: "HTTP " + response.status
@@ -149,86 +217,47 @@ async function testServer(base) {
 
     const data = await response.json();
 
-    if (data && typeof data === "object" &&
-        (Array.isArray(data.audioStreams) ||
-         Array.isArray(data.videoStreams) ||
-         Array.isArray(data.relatedStreams))) {
+    if (
+      data &&
+      typeof data === "object" &&
+      (
+        Array.isArray(data.videoStreams) ||
+        Array.isArray(data.audioStreams) ||
+        Array.isArray(data.relatedStreams)
+      )
+    ) {
       return {
-        server: base,
-        url,
         result: "success",
         status: response.status,
-        data
+        error: ""
       };
     }
 
     return {
-      server: base,
-      url,
       result: "failed",
       status: response.status,
-      error: "JSON形式だが動画情報の構造が違う"
+      error: "動画情報のJSONではありません"
     };
 
   } catch (e) {
     return {
-      server: base,
-      url,
       result: "unknown",
+      status: null,
       error: e.name === "AbortError"
         ? "タイムアウト"
         : e.message
     };
+
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-async function startTest() {
-  results = [];
-  document.getElementById("results").innerHTML = "";
-  document.getElementById("start").disabled = true;
-
-  const total = servers.length;
-  let index = 0;
-
-  async function worker() {
-    while (index < total) {
-      const current = index++;
-      const result = await testServer(servers[current]);
-
-      results[current] = result;
-      renderResult(result);
-
-      const done = results.filter(Boolean).length;
-
-      document.getElementById("checked").textContent = done;
-      document.getElementById("success").textContent =
-        results.filter(x => x?.result === "success").length;
-      document.getElementById("failed").textContent =
-        results.filter(x => x?.result === "failed").length;
-      document.getElementById("unknown").textContent =
-        results.filter(x => x?.result === "unknown").length;
-
-      document.getElementById("bar").style.width =
-        (done / total * 100) + "%";
-
-      document.getElementById("status").textContent =
-        done + " / " + total + " 検査完了";
-    }
-  }
-
-  await Promise.all(
-    Array.from({length: 5}, () => worker())
-  );
-
-  document.getElementById("status").textContent =
-    "すべての検査が完了しました";
-
-  document.getElementById("start").disabled = false;
-}
-
-function renderResult(r) {
+function render(item, index) {
   const div = document.createElement("div");
-  div.className = "item " + r.result;
+  div.className = "result " +
+    (item.result === "success" ? "ok" :
+    item.result === "failed" ? "ng" : "unknown");
 
   const labels = {
     success: "成功",
@@ -236,41 +265,156 @@ function renderResult(r) {
     unknown: "判定不能"
   };
 
-  div.innerHTML = "";
+  const title = document.createElement("div");
+  title.className = "badge";
+  title.textContent = (index + 1) + ". " + labels[item.result];
 
-  const title = document.createElement("strong");
-  title.textContent = labels[r.result];
-
-  const url = document.createElement("div");
-  url.className = "small";
-  url.textContent = r.url;
+  const link = document.createElement("div");
+  link.className = "small";
+  link.textContent = item.url || "URL不明";
 
   const detail = document.createElement("div");
   detail.textContent =
-    "HTTP: " + (r.status ?? "取得不可") +
-    " / " + (r.error ?? "正常な動画JSONを確認");
+    "HTTP: " + (item.status ?? "取得不可") +
+    " / " + (item.error || "正常なJSONを確認");
 
-  div.append(title, url, detail);
+  div.append(title, link, detail);
 
   document.getElementById("results").appendChild(div);
 }
 
-async function copyResults() {
-  const output = results.filter(Boolean).map(r => ({
-    server: r.server,
-    url: r.url,
-    result: r.result,
-    status: r.status ?? null,
-    error: r.error ?? null
-  }));
+function updateStats() {
+  document.getElementById("success").textContent =
+    results.filter(x => x.result === "success").length;
 
-  await navigator.clipboard.writeText(
-    JSON.stringify(output, null, 2)
+  document.getElementById("failed").textContent =
+    results.filter(x => x.result === "failed").length;
+
+  document.getElementById("unknown").textContent =
+    results.filter(x => x.result === "unknown").length;
+
+  document.getElementById("checked").textContent =
+    results.length;
+}
+
+async function startTest() {
+  if (running) return;
+
+  const lines = document.getElementById("urls")
+    .value.split(/\r?\n/)
+    .map(x => x.trim())
+    .filter(x => x && !x.startsWith("#"));
+
+  const video = document.getElementById("video").value.trim();
+
+  if (!lines.length) {
+    alert("URLを入力してください");
+    return;
+  }
+
+  if (!video || video.includes("/")) {
+    alert("動画IDを正しく入力してください");
+    return;
+  }
+
+  results = [];
+  stopped = false;
+  running = true;
+
+  document.getElementById("results").innerHTML = "";
+  document.getElementById("bar").style.width = "0%";
+  document.getElementById("start").disabled = true;
+
+  const urls = lines.map(line => {
+    try {
+      return {url: makeURL(line, video)};
+    } catch (e) {
+      return {url: line, error: e.message};
+    }
+  });
+
+  let next = 0;
+  let completed = 0;
+
+  async function worker() {
+    while (!stopped) {
+      const i = next++;
+      if (i >= urls.length) break;
+
+      let item;
+
+      if (urls[i].error) {
+        item = {
+          url: urls[i].url,
+          result: "failed",
+          status: null,
+          error: urls[i].error
+        };
+      } else {
+        const checked = await test(urls[i].url);
+
+        item = {
+          url: urls[i].url,
+          ...checked
+        };
+      }
+
+      results[i] = item;
+      completed++;
+
+      render(item, i);
+      updateStats();
+
+      document.getElementById("bar").style.width =
+        (completed / urls.length * 100) + "%";
+
+      document.getElementById("status").textContent =
+        completed + " / " + urls.length + " 検査完了";
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      {length: Math.min(5, urls.length)},
+      () => worker()
+    )
   );
 
-  alert("検査結果をコピーしました");
+  running = false;
+  document.getElementById("start").disabled = false;
+
+  document.getElementById("status").textContent =
+    stopped
+      ? "検査を停止しました"
+      : "すべての検査が完了しました";
+}
+
+function stopTest() {
+  stopped = true;
+}
+
+async function copyResults() {
+  if (!results.length) {
+    alert("コピーする結果がありません");
+    return;
+  }
+
+  const output = results.map(r => ({
+    url: r.url,
+    result: r.result,
+    status: r.status,
+    error: r.error
+  }));
+
+  try {
+    await navigator.clipboard.writeText(
+      JSON.stringify(output, null, 2)
+    );
+    alert("結果をコピーしました");
+  } catch(e) {
+    alert("コピーできませんでした。HTTPS環境で試してください");
+  }
 }
 </script>
-
 </body>
 </html>
